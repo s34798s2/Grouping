@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>動態分組程式</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Microsoft JhengHei', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            padding: 20px;
+            position: relative;
+        }
+        
+        .header h1 {
+            text-align: center;
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+        
+        .settings-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255,255,255,0.2);
+            border: 2px solid white;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+        
+        .settings-btn:hover {
+            background: rgba(255,255,255,0.3);
+            transform: scale(1.05);
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+        
+        .modal-content {
+            background-color: white;
+            margin: 10% auto;
+            padding: 30px;
+            border-radius: 15px;
+            width: 80%;
+            max-width: 500px;
+            animation: slideIn 0.3s ease;
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateY(-50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: -10px;
+        }
+        
+        .close:hover {
+            color: #000;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .form-group textarea {
+            width: 100%;
+            height: 150px;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            resize: vertical;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        
+        .save-btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+            transition: transform 0.2s ease;
+        }
+        
+        .save-btn:hover {
+            transform: scale(1.02);
+        }
+        
+        .main-content {
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .people-display {
+            margin: 20px 0;
+            min-height: 200px;
+            position: relative;
+        }
+        
+        .person {
+            display: inline-block;
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            color: white;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: bold;
+            position: relative;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        
+        .person.animating {
+            position: absolute;
+            z-index: 100;
+        }
+        
+        .group-btn {
+            background: linear-gradient(45deg, #11998e, #38ef7d);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 30px;
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: bold;
+            margin: 20px 0;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.2);
+        }
+        
+        .group-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+        }
+        
+        .group-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .groups-display {
+            margin-top: 30px;
+        }
+        
+        .group {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 15px;
+            margin: 15px 0;
+            padding: 20px;
+            text-align: left;
+        }
+        
+        .group-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #495057;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        .group-members {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .group-member {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+        }
+        
+        .welcome-msg {
+            color: #666;
+            font-size: 18px;
+            margin: 50px 0;
+        }
+        
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-30px); }
+            60% { transform: translateY(-15px); }
+        }
+        
+        @keyframes float {
+            0% { transform: translate(0, 0) rotate(0deg) scale(1); }
+            10% { transform: translate(100px, -80px) rotate(180deg) scale(1.5); }
+            20% { transform: translate(-120px, -100px) rotate(360deg) scale(0.8); }
+            30% { transform: translate(150px, 50px) rotate(540deg) scale(1.3); }
+            40% { transform: translate(-80px, -150px) rotate(720deg) scale(0.6); }
+            50% { transform: translate(200px, -50px) rotate(900deg) scale(1.8); }
+            60% { transform: translate(-150px, 120px) rotate(1080deg) scale(0.9); }
+            70% { transform: translate(80px, -120px) rotate(1260deg) scale(1.4); }
+            80% { transform: translate(-200px, -80px) rotate(1440deg) scale(0.7); }
+            90% { transform: translate(120px, 100px) rotate(1620deg) scale(1.2); }
+            100% { transform: translate(0, 0) rotate(1800deg) scale(1); }
+        }
+        
+        @keyframes crazyFloat {
+            0% { transform: translate(0, 0) rotate(0deg) scale(1); filter: hue-rotate(0deg); }
+            5% { transform: translate(-150px, -100px) rotate(90deg) scale(1.8); filter: hue-rotate(36deg); }
+            10% { transform: translate(200px, -150px) rotate(270deg) scale(0.5); filter: hue-rotate(72deg); }
+            15% { transform: translate(-100px, 200px) rotate(450deg) scale(2.0); filter: hue-rotate(108deg); }
+            20% { transform: translate(250px, 50px) rotate(630deg) scale(0.3); filter: hue-rotate(144deg); }
+            25% { transform: translate(-200px, -200px) rotate(810deg) scale(1.6); filter: hue-rotate(180deg); }
+            30% { transform: translate(100px, 150px) rotate(990deg) scale(0.8); filter: hue-rotate(216deg); }
+            35% { transform: translate(-250px, 100px) rotate(1170deg) scale(1.9); filter: hue-rotate(252deg); }
+            40% { transform: translate(180px, -100px) rotate(1350deg) scale(0.4); filter: hue-rotate(288deg); }
+            45% { transform: translate(-80px, -180px) rotate(1530deg) scale(1.7); filter: hue-rotate(324deg); }
+            50% { transform: translate(220px, 180px) rotate(1710deg) scale(0.6); filter: hue-rotate(360deg); }
+            55% { transform: translate(-180px, -50px) rotate(1890deg) scale(1.4); filter: hue-rotate(396deg); }
+            60% { transform: translate(120px, -200px) rotate(2070deg) scale(0.9); filter: hue-rotate(432deg); }
+            65% { transform: translate(-220px, 150px) rotate(2250deg) scale(1.8); filter: hue-rotate(468deg); }
+            70% { transform: translate(160px, 80px) rotate(2430deg) scale(0.5); filter: hue-rotate(504deg); }
+            75% { transform: translate(-160px, -120px) rotate(2610deg) scale(1.5); filter: hue-rotate(540deg); }
+            80% { transform: translate(240px, -80px) rotate(2790deg) scale(0.7); filter: hue-rotate(576deg); }
+            85% { transform: translate(-120px, 200px) rotate(2970deg) scale(1.3); filter: hue-rotate(612deg); }
+            90% { transform: translate(80px, -160px) rotate(3150deg) scale(1.0); filter: hue-rotate(648deg); }
+            95% { transform: translate(-200px, 80px) rotate(3330deg) scale(1.6); filter: hue-rotate(684deg); }
+            100% { transform: translate(0, 0) rotate(3600deg) scale(1); filter: hue-rotate(720deg); }
+        }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎲 動態分組程式</h1>
+            <button class="settings-btn" onclick="openSettings()">⚙️ 設定</button>
+        </div>
+        
+        <div class="main-content">
+            <div id="welcomeMsg" class="welcome-msg">
+                👋 歡迎使用動態分組程式！<br>
+                點擊右上角的設定按鈕開始設定人員名單和分組數量
+            </div>
+            
+            <div id="peopleDisplay" class="people-display"></div>
+            
+            <button id="groupBtn" class="group-btn" onclick="startGrouping()" style="display: none;">
+                🎯 開始分組
+            </button>
+            
+            <div id="groupsDisplay" class="groups-display"></div>
+        </div>
+    </div>
+
+    <!-- 設定視窗 -->
+    <div id="settingsModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeSettings()">&times;</span>
+            <h2 style="margin-bottom: 20px; color: #333;">分組設定</h2>
+            
+            <div class="form-group">
+                <label for="peopleNames">人員名單 (每行一個姓名)：</label>
+                <textarea id="peopleNames" placeholder="請輸入人員姓名，每行一個：&#10;張三&#10;李四&#10;王五&#10;趙六"></textarea>
+                <button type="button" id="helpBtn" style="background: #f8f9fa; border: 1px solid #ddd; color: #666; padding: 5px 10px; border-radius: 15px; font-size: 12px; cursor: pointer; margin-top: 8px; transition: all 0.2s ease;" onclick="toggleHelp()">
+                    ❓ 特殊分組規則說明
+                </button>
+                <div id="helpText" style="display: none; font-size: 12px; color: #666; margin-top: 8px; padding: 10px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #667eea;">
+                    💡 <strong>特殊分組規則：</strong><br>
+                    • 姓名後加 <strong>-</strong> 表示不可同組 (例：小明-)<br>
+                    • 姓名後加 <strong>+</strong> 表示必須同組 (例：小華+)<br>
+                    • 一般姓名正常隨機分組
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="groupCount">分組數量：</label>
+                <input type="number" id="groupCount" min="1" max="50" value="2" placeholder="請輸入要分成幾組">
+            </div>
+            
+            <button class="save-btn" onclick="saveSettings()">💾 儲存設定</button>
+        </div>
+    </div>
+
+    <script>
+        let people = [];
+        let groupCount = 2;
+        let groups = [];
+        let isAnimating = false;
+        let peopleData = []; // 儲存人員和其特殊標記
+
+        function openSettings() {
+            document.getElementById('settingsModal').style.display = 'block';
+            // 重建顯示字串，包含特殊標記
+            const displayNames = peopleData.map(pd => pd.originalInput);
+            document.getElementById('peopleNames').value = displayNames.join('\n');
+            document.getElementById('groupCount').value = groupCount;
+        }
+
+        function closeSettings() {
+            document.getElementById('settingsModal').style.display = 'none';
+        }
+
+        function saveSettings() {
+            const namesText = document.getElementById('peopleNames').value.trim();
+            const newGroupCount = parseInt(document.getElementById('groupCount').value);
+            
+            if (namesText === '') {
+                alert('請輸入至少一個人員姓名！');
+                return;
+            }
+            
+            if (newGroupCount < 1) {
+                alert('分組數量必須大於 0！');
+                return;
+            }
+            
+            // 解析人員名單和特殊標記
+            const rawNames = namesText.split('\n').filter(name => name.trim() !== '').map(name => name.trim());
+            peopleData = [];
+            people = [];
+            
+            rawNames.forEach(name => {
+                let actualName = name;
+                let type = 'normal';
+                
+                if (name.endsWith('-')) {
+                    actualName = name.slice(0, -1);
+                    type = 'separate';
+                } else if (name.endsWith('+')) {
+                    actualName = name.slice(0, -1);
+                    type = 'together';
+                }
+                
+                peopleData.push({ name: actualName, type: type, originalInput: name });
+                people.push(actualName);
+            });
+            
+            groupCount = newGroupCount;
+            
+            if (people.length < groupCount) {
+                alert('人員數量不能少於分組數量！');
+                return;
+            }
+            
+            displayPeople();
+            closeSettings();
+            
+            // 隱藏歡迎訊息，顯示分組按鈕
+            document.getElementById('welcomeMsg').style.display = 'none';
+            document.getElementById('groupBtn').style.display = 'inline-block';
+            document.getElementById('groupsDisplay').innerHTML = '';
+        }
+
+        function displayPeople() {
+            const display = document.getElementById('peopleDisplay');
+            display.innerHTML = '';
+            
+            peopleData.forEach((personData, index) => {
+                const personDiv = document.createElement('div');
+                personDiv.className = 'person';
+                personDiv.textContent = personData.name;
+                personDiv.id = `person-${index}`;
+                display.appendChild(personDiv);
+            });
+        }
+
+        function startGrouping() {
+            if (isAnimating) return;
+            
+            isAnimating = true;
+            document.getElementById('groupBtn').disabled = true;
+            document.getElementById('groupBtn').textContent = '分組中...';
+            
+            // 開始動畫
+            animatePeople().then(() => {
+                // 分組邏輯
+                createGroups();
+                displayGroups();
+                
+                // 重新啟用按鈕
+                isAnimating = false;
+                document.getElementById('groupBtn').disabled = false;
+                document.getElementById('groupBtn').textContent = '🎯 重新分組';
+            });
+        }
+
+        function animatePeople() {
+            return new Promise((resolve) => {
+                const peopleElements = document.querySelectorAll('.person');
+                const container = document.getElementById('peopleDisplay');
+                const containerRect = container.getBoundingClientRect();
+                
+                // 將所有人員設為絕對定位並開始瘋狂動畫
+                peopleElements.forEach((element, index) => {
+                    const rect = element.getBoundingClientRect();
+                    element.style.position = 'absolute';
+                    element.style.left = (rect.left - containerRect.left) + 'px';
+                    element.style.top = (rect.top - containerRect.top) + 'px';
+                    element.classList.add('animating');
+                    element.style.zIndex = '1000';
+                    
+                    // 超級誇張的隨機移動動畫
+                    const animationType = Math.random() > 0.5 ? 'crazyFloat' : 'float';
+                    const duration = 3000 + Math.random() * 2000; // 3-5秒的瘋狂動畫
+                    const delay = Math.random() * 500; // 隨機延遲開始
+                    
+                    setTimeout(() => {
+                        element.style.animation = `${animationType} ${duration}ms ease-in-out infinite`;
+                        
+                        // 添加額外的瘋狂效果
+                        element.style.boxShadow = '0 0 20px rgba(255,255,255,0.8), 0 0 40px rgba(255,0,255,0.6), 0 0 60px rgba(0,255,255,0.4)';
+                        element.style.border = '2px solid rgba(255,255,255,0.8)';
+                        
+                        // 隨機改變背景色彩
+                        const colors = [
+                            'linear-gradient(45deg, #ff6b6b, #ee5a24)',
+                            'linear-gradient(45deg, #feca57, #ff9ff3)',
+                            'linear-gradient(45deg, #48dbfb, #0abde3)',
+                            'linear-gradient(45deg, #1dd1a1, #10ac84)',
+                            'linear-gradient(45deg, #a55eea, #8c7ae6)',
+                            'linear-gradient(45deg, #fd79a8, #e84393)'
+                        ];
+                        
+                        const randomColor = colors[Math.floor(Math.random() * colors.length)];
+                        element.style.background = randomColor;
+                        
+                    }, delay);
+                });
+                
+                // 等待瘋狂動畫完成後進行最終彈跳
+                setTimeout(() => {
+                    peopleElements.forEach((element, index) => {
+                        element.style.animation = 'bounce 1s ease';
+                        element.style.boxShadow = '0 4px 15px rgba(0,0,0,0.1)';
+                        element.style.border = 'none';
+                        
+                        // 恢復原本的統一顏色
+                        element.style.background = 'linear-gradient(45deg, #ff6b6b, #ee5a24)';
+                    });
+                    
+                    setTimeout(() => {
+                        resolve();
+                    }, 1000);
+                }, 5000); // 5秒瘋狂動畫
+            });
+        }
+
+        function createGroups() {
+            // 先按照特殊規則進行分組
+            groups = [];
+            for (let i = 0; i < groupCount; i++) {
+                groups.push([]);
+            }
+            
+            // 找出所有需要在一起的人 (+)
+            const togetherGroups = {};
+            const separateList = [];
+            const normalList = [];
+            
+            peopleData.forEach((personData, index) => {
+                if (personData.type === 'together') {
+                    if (!togetherGroups['together']) {
+                        togetherGroups['together'] = [];
+                    }
+                    togetherGroups['together'].push(personData.name);
+                } else if (personData.type === 'separate') {
+                    separateList.push(personData.name);
+                } else {
+                    normalList.push(personData.name);
+                }
+            });
+            
+            let assignedPeople = [];
+            let currentGroupIndex = 0;
+            
+            // 先分配需要在一起的人
+            if (togetherGroups['together'] && togetherGroups['together'].length > 0) {
+                const togetherPeople = [...togetherGroups['together']].sort(() => Math.random() - 0.5);
+                
+                // 檢查是否能放在同一組
+                if (togetherPeople.length <= Math.ceil(peopleData.length / groupCount)) {
+                    groups[currentGroupIndex].push(...togetherPeople);
+                    assignedPeople.push(...togetherPeople);
+                    currentGroupIndex++;
+                } else {
+                    // 如果人數太多，盡量分在前幾組
+                    let splitIndex = 0;
+                    togetherPeople.forEach(person => {
+                        if (groups[splitIndex % groupCount].length < Math.ceil(peopleData.length / groupCount)) {
+                            groups[splitIndex % groupCount].push(person);
+                            assignedPeople.push(person);
+                        }
+                        splitIndex++;
+                    });
+                }
+            }
+            
+            // 分配不能在一起的人 (-)
+            const shuffledSeparateList = [...separateList].sort(() => Math.random() - 0.5);
+            shuffledSeparateList.forEach(person => {
+                // 找出目前分離標記人數最少的組
+                let targetGroupIndex = 0;
+                let minSeparateCount = Infinity;
+                
+                for (let i = 0; i < groupCount; i++) {
+                    const separateCountInGroup = groups[i].filter(p => 
+                        peopleData.find(pd => pd.name === p && pd.type === 'separate')
+                    ).length;
+                    
+                    if (separateCountInGroup < minSeparateCount && 
+                        groups[i].length < Math.ceil(peopleData.length / groupCount)) {
+                        minSeparateCount = separateCountInGroup;
+                        targetGroupIndex = i;
+                    }
+                }
+                
+                groups[targetGroupIndex].push(person);
+                assignedPeople.push(person);
+            });
+            
+            // 最後分配普通人員
+            const shuffledNormalList = [...normalList].sort(() => Math.random() - 0.5);
+            shuffledNormalList.forEach(person => {
+                // 找出人數最少的組
+                let targetGroupIndex = 0;
+                let minCount = groups[0].length;
+                
+                for (let i = 1; i < groupCount; i++) {
+                    if (groups[i].length < minCount) {
+                        minCount = groups[i].length;
+                        targetGroupIndex = i;
+                    }
+                }
+                
+                groups[targetGroupIndex].push(person);
+                assignedPeople.push(person);
+            });
+        }
+
+        function displayGroups() {
+            const display = document.getElementById('groupsDisplay');
+            display.innerHTML = '';
+            
+            groups.forEach((group, index) => {
+                const groupDiv = document.createElement('div');
+                groupDiv.className = 'group';
+                
+                const titleDiv = document.createElement('div');
+                titleDiv.className = 'group-title';
+                titleDiv.textContent = `第 ${index + 1} 組 (${group.length} 人)`;
+                
+                const membersDiv = document.createElement('div');
+                membersDiv.className = 'group-members';
+                
+                group.forEach(member => {
+                    const memberDiv = document.createElement('div');
+                    memberDiv.className = 'group-member';
+                    memberDiv.textContent = member;
+                    membersDiv.appendChild(memberDiv);
+                });
+                
+                groupDiv.appendChild(titleDiv);
+                groupDiv.appendChild(membersDiv);
+                display.appendChild(groupDiv);
+            });
+            
+            // 清除人員顯示區域並重新顯示
+            setTimeout(() => {
+                displayPeople();
+            }, 100);
+        }
+
+        // 點擊模態框外部關閉
+        window.onclick = function(event) {
+            const modal = document.getElementById('settingsModal');
+            if (event.target === modal) {
+                closeSettings();
+            }
+        }
+
+        function toggleHelp() {
+            const helpText = document.getElementById('helpText');
+            const helpBtn = document.getElementById('helpBtn');
+            
+            if (helpText.style.display === 'none') {
+                helpText.style.display = 'block';
+                helpBtn.textContent = '❌ 隱藏說明';
+                helpBtn.style.background = '#667eea';
+                helpBtn.style.color = 'white';
+            } else {
+                helpText.style.display = 'none';
+                helpBtn.textContent = '❓ 特殊分組規則說明';
+                helpBtn.style.background = '#f8f9fa';
+                helpBtn.style.color = '#666';
+            }
+        }
+    </script>
+</body>
+</html>
